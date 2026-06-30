@@ -168,7 +168,7 @@ export default function MindMap() {
     setError("")
 
     try {
-      const res = await fetch("http://localhost:8000/mindmap", {
+      const res = await fetch("https://qa-chatbot-1-tcvg.onrender.com/mindmap", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic: topic.trim() || "general" })

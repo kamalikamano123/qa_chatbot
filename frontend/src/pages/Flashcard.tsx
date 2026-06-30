@@ -30,7 +30,7 @@ export default function Flashcard() {
     setCurrent(0)
 
     try {
-      const res = await fetch("http://localhost:8000/flashcards", {
+      const res = await fetch("https://qa-chatbot-1-tcvg.onrender.com/flashcards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
