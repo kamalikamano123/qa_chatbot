@@ -6,7 +6,7 @@ langchain
 langchain-community
 langchain-text-splitters
 faiss-cpu
-sentence-transformers
+fastembed>=0.3.0
 youtube-transcript-api
 python-multipart
 groq

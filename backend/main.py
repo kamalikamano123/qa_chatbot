@@ -19,6 +19,13 @@ load_dotenv()
 
 app = FastAPI()
 
+def ensure_vectorstore():
+    global retriever
+
+    if retriever is None:
+        load_vectorstore()
+
+
 # ✅ CORS
 app.add_middleware(
     CORSMiddleware,
@@ -43,15 +50,53 @@ def ask_groq(prompt: str) -> str:
     return response.choices[0].message.content
 
 # Global DB
+# -----------------------------
+# Global Objects
+# -----------------------------
+
 vector_store = None
 retriever = None
+embeddings = None
 
-# ✅ Embeddings — always BAAI/bge-small-en
-embeddings = HuggingFaceEmbeddings(
-    model_name="BAAI/bge-small-en",
-    model_kwargs={'device': 'cpu'},
-    encode_kwargs={'normalize_embeddings': True}
-)
+
+def get_embeddings():
+    global embeddings
+
+    if embeddings is None:
+        print("Loading embedding model...")
+
+        embeddings = HuggingFaceEmbeddings(
+            model_name="BAAI/bge-small-en",
+            model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True},
+        )
+
+        print("Embedding model loaded.")
+
+    return embeddings
+
+def load_vectorstore():
+    global vector_store, retriever
+
+    if os.path.exists("faiss_index"):
+
+        print("Loading existing FAISS index...")
+
+        vector_store = FAISS.load_local(
+            "faiss_index",
+            get_embeddings(),
+            allow_dangerous_deserialization=True
+        )
+
+        retriever = vector_store.as_retriever(
+            search_type="mmr",
+            search_kwargs={
+                "k": 15,
+                "fetch_k": 30
+            }
+        )
+
+        print("FAISS loaded successfully.")
 
 # Splitter
 splitter = RecursiveCharacterTextSplitter(
@@ -116,11 +161,22 @@ async def upload_pdf(files: List[UploadFile] = File(...)):
             docs = splitter.create_documents([extracted_text])
             documents.extend(docs)
 
+        # if vector_store is not None:
+        #     vector_store.add_documents(documents)
+        # else:
+        #     vector_store = FAISS.from_documents(documents, get_embeddings())
+        #     vector_store.save_local("faiss_index")
+
         if vector_store is not None:
             vector_store.add_documents(documents)
+
         else:
-            vector_store = FAISS.from_documents(documents, embeddings)
-            vector_store.save_local("faiss_index")
+            vector_store = FAISS.from_documents(
+                documents,
+                get_embeddings()
+            )
+
+        vector_store.save_local("faiss_index")
 
         retriever = vector_store.as_retriever(
             search_type="mmr",
@@ -164,7 +220,7 @@ def upload_youtube(request: YouTubeRequest):
     if vector_store is not None:
         vector_store.add_documents(all_documents)
     else:
-        vector_store = FAISS.from_documents(all_documents, embeddings)
+        vector_store = FAISS.from_documents(all_documents, get_embeddings())
         vector_store.save_local("faiss_index")
 
     retriever = vector_store.as_retriever(
@@ -287,7 +343,7 @@ JSON array:"""
     # ← Fix: use single braces
         start = text.find("{")
         end = text.rfind("}") + 1
-        mindmap_data = json.loads(text[start:end])
+        flashcard_data = json.loads(text[start:end])
         return {"mindmap": mindmap_data}
     except Exception as e:
         print("PARSE ERROR:", e)
