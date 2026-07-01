@@ -1,5 +1,4 @@
-﻿
-import os
+﻿import os
 import json
 from fastapi import FastAPI, UploadFile, File
 from dotenv import load_dotenv
@@ -43,6 +42,12 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 vector_store = None
 retriever = None
 embeddings = None
+
+
+def ensure_vectorstore():
+    global retriever
+    if retriever is None:
+        load_vectorstore()
 
 
 def get_embeddings():
@@ -229,6 +234,8 @@ def upload_youtube(request: YouTubeRequest):
 def generate_quiz(request: QuizRequest):
     global retriever
 
+    ensure_vectorstore()
+
     if retriever is None:
         return {"error": "Upload PDF or YouTube first"}
 
@@ -285,6 +292,8 @@ JSON array:"""
 def generate_flashcards(request: FlashcardRequest):
     global retriever
 
+    ensure_vectorstore()
+
     if retriever is None:
         return {"error": "Upload PDF or YouTube first"}
 
@@ -333,6 +342,8 @@ JSON array:"""
 @app.post("/mindmap")
 def generate_mindmap(request: MindMapRequest):
     global retriever
+
+    ensure_vectorstore()
 
     if retriever is None:
         return {"error": "Upload PDF or YouTube first"}
@@ -385,6 +396,8 @@ def chat(request: ChatRequest):
     try:
         question = request.question
         marks = request.marks
+
+        ensure_vectorstore()
 
         if retriever is None:
             return {"error": "Upload PDF or YouTube first"}
